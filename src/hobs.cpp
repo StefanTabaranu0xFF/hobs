@@ -49,7 +49,7 @@ using namespace std;
 
 #define BUCKET_SIZE 9
 #define MAX 12811
-#define NUM_BUCKETS 5000
+#define NUM_BUCKETS 2000
 #define NUM_THREADS 2
 #define MB 1000000
 #define MIN_PRINT_CTR 1200
@@ -77,25 +77,42 @@ inline int get_bck_id_pos(int bck_id)
     return bck_id % NUM_BUCKETS;
 }
 
+inline int get_list_bck_pos(int bck_id){
+    return (0x99A * bck_id) % NUM_BUCKETS;
+}
+
+void list_bck_ids() {
+  for (int i = 0; i < NUM_BUCKETS; i++) {
+    printf("%d ", bck_list[i]);
+  }
+}
+
 // Read and write in the matrix holder
 // this function should get the prefather
 // system of the cpu
-inline void __compute_density_mat_pos(vector<int>& __unsorted, int* density_matrix,
-                              int i)
-{
+inline void __compute_density_mat_pos(vector<int> &__unsorted,
+                                      int *density_matrix, int &i) {
 
-    // this read get with a high cost
-    // best case scenarious as read as part
-    // of a cache line
-    int val = __unsorted[i];
-    // printf("val: %d  ", val);
-    /* generate secret number between 1 and 10: */
-    int bck_id = val / BUCKET_SIZE;
-    // get the bucket id pos
-    // int bck_id_pos = bck_id % NUM_BUCKETS;
-    int pos = val % BUCKET_SIZE;
-    int pos_in_bck_holder = bck_id * BUCKET_SIZE + pos;
-    density_matrix[pos_in_bck_holder]++;
+  // this read get with a high cost
+  // best case scenarious as read as part
+  // of a cache line
+  int val = __unsorted[i];
+  // printf("val: %d  ", val);
+  /* generate secret number between 1 and 10: */
+  int bck_id = val / BUCKET_SIZE;
+  // get the bucket id pos
+  // int bck_id_pos = bck_id % NUM_BUCKETS;
+  int pos = val - (bck_id * BUCKET_SIZE); // val % BUCKET_SIZE;
+  int pos_in_bck_holder = bck_id * BUCKET_SIZE + pos;
+  int pos_in_bck_list = get_bck_id_pos(bck_id);
+  // bck_list[pos_in_bck_list] = bck_id;
+
+  if (bck_list[pos_in_bck_list] == 0)
+    bck_list[pos_in_bck_list] = bck_id;
+  else if (bck_list[pos_in_bck_list] != bck_id)
+    printf("error");
+
+  density_matrix[pos_in_bck_holder]++;
 }
 
 void _compose_sorted_array(int* density_matrix, int* sorted_)
@@ -127,16 +144,23 @@ void generate_random_numbers(vector<int>& __unsorted_array, int num_elements)
     }
 }
 
-void __hobs_scan_(vector<int>& __unsorted_array,
-                  int* sorted_,
-                  int* density_matrix,
-                  int num_elements)
-{
-    for (int i = 0; i < num_elements; i++) {
-        __compute_density_mat_pos(__unsorted_array, density_matrix, i);
-    }
-    // this will composed the final array
-    _compose_sorted_array(density_matrix, sorted_);
+void __hobs_scan_(vector<int> &__unsorted_array, int *sorted_,
+                  int *density_matrix, int num_elements) {
+
+  clock_t begin, end;
+  double time_spent;
+
+  for (int i = 0; i < num_elements; i++) {
+    __compute_density_mat_pos(__unsorted_array, density_matrix, i);
+  }
+
+  begin = clock();
+  // this will composed the final array
+  _compose_sorted_array(density_matrix, sorted_);
+  end = clock();
+  hobs_time = (double)(end - begin) / CLOCKS_PER_SEC;
+
+  printf("composition took: %.3f s\n", hobs_time);
 }
 
 void __run_tests(int* sorted_, vector<int>& __unsorted_array, int num_elements)
@@ -196,6 +220,7 @@ void hobs(int num_elements)
     hobs_time = (double)(end - begin) / CLOCKS_PER_SEC;
 
     printf("hobs took: %.3f s\n", hobs_time);
+    //list_bck_ids();
 
     // compute the space taken by the high order bucket search  ( HOBS )
     double space_hobs = (NUM_BUCKETS * sizeof(BUCKET)) / 1024;
