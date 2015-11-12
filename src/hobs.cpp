@@ -107,11 +107,11 @@ inline void __compute_density_mat_pos(vector<int> &__unsorted,
   int pos_in_bck_list = get_bck_id_pos(bck_id);
   // bck_list[pos_in_bck_list] = bck_id;
 
-  if (bck_list[pos_in_bck_list] == 0)
-    bck_list[pos_in_bck_list] = bck_id;
-  else if (bck_list[pos_in_bck_list] != bck_id)
-    printf("error");
-
+  //if (bck_list[pos_in_bck_list] == 0)
+      //bck_list[pos_in_bck_list] = bck_id;
+  //else if (bck_list[pos_in_bck_list] != bck_id)
+    //printf("error");
+  density_matrix[pos_in_bck_list] = bck_id;
   density_matrix[pos_in_bck_holder]++;
 }
 
@@ -150,7 +150,7 @@ void __hobs_scan_(vector<int> &__unsorted_array, int *sorted_,
   clock_t begin, end;
   double time_spent;
 
-  for (int i = 0; i < num_elements; i++) {
+  for (int i = 0; i < num_elements / 4; i++) {
     __compute_density_mat_pos(__unsorted_array, density_matrix, i);
   }
 
@@ -247,31 +247,66 @@ void hobs(int num_elements)
     free(density_matrix);
 }
 
+int* field;
+int len_field = 12000000;
+void test_bitfield_mapper()
+{
+    field = (int*)malloc(sizeof(int) * len_field);
+    if (field == NULL) {
+        printf("unable to allocate\n");
+        return;
+    }
+
+    for (int i = 0; i < len_field; i++) {
+        field[i] = i;
+    }
+
+    clock_t begin, end;
+    double time_spent;
+
+    begin = clock();
+    int bits_set = 0;
+    for (int i = 0; i < len_field; i++) {
+        int v = field[i];
+        for (int j = 0; j < 32; j++) {
+            int bits = v & (1 << j);
+            if(bits) bits_set++;
+        }
+    }
+    end = clock();
+
+    time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("check bit values time: %.3f s\n", time_spent);
+    printf("num of bits set %d\n", bits_set);
+}
+
 /*
 Starting point of the application
 */
-int main(int argc, char **argv) {
+int main(int argc, char** argv)
+{
 
-  int num_elements = 50;
+    int num_elements = 50;
+    test_bitfield_mapper();
 
-  int flag;
-  opterr = 0;
-        int c;
+    int flag;
+    opterr = 0;
+    int c;
 
-  while ((c = getopt(argc, argv, "n:")) != -1) {
-    switch (c) {
-    case 'n':
-      num_elements = atoi(optarg);
-      break;
-    default:
-      abort();
+    while ((c = getopt(argc, argv, "n:")) != -1) {
+        switch (c) {
+        case 'n':
+            num_elements = atoi(optarg);
+            break;
+        default:
+            abort();
+        }
     }
-  }
 
-        printf("num of elements %d\n", num_elements);
+    printf("num of elements %d\n", num_elements);
 
-  // high order bucket sort
-  hobs(num_elements);
+    // high order bucket sort
+    hobs(num_elements);
 
-  return 0;
+    return 0;
 }
