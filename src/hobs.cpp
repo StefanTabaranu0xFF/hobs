@@ -63,9 +63,11 @@ called buckets.
 
 using namespace std;
 
-#define BUCKET_SIZE 128
-#define MAX 25612341
-#define NUM_BUCKETS 2000
+// 125 KB of data per bucket
+// make this as a sparse vector
+#define BUCKET_SIZE 125000
+#define MAX 910114774
+#define NUM_BUCKETS 224
 #define NUM_THREADS 2
 #define MB 1000000
 #define MIN_PRINT_CTR 1200
@@ -85,9 +87,17 @@ typedef struct thread_info {
   BUCKET *bcks_raw_array;
 } thread_info;
 
+typedef struct ELEMENT {
+  int index;
+  int value;
+  ELEMENT* next;
+} ELEMENT;
+
 double hobs_time, stl_sort_time;
 int print_sort_flg = 0;
 int bck_list[NUM_BUCKETS];
+
+int** bck_refs;
 
 inline int get_bck_id_pos(int bck_id) { return bck_id % NUM_BUCKETS; }
 
@@ -132,13 +142,11 @@ inline void __compute_density_mat_pos(vector<int> &__unsorted,
   int pos_in_bck_holder = slot_id * BUCKET_SIZE + pos;
   // bck_list[pos_in_bck_list] = bck_id;
 
-<<<<<<< HEAD
   //if (bck_list[pos_in_bck_list] == 0)
       //bck_list[pos_in_bck_list] = bck_id;
   //else if (bck_list[pos_in_bck_list] != bck_id)
     //printf("error");
-  density_matrix[pos_in_bck_list] = bck_id;
-=======
+  //density_matrix[pos_in_bck_list] = bck_id;
   std::map<int,int>::iterator f = bck_map_list.find(bck_id);
 
   if(f == bck_map_list.end())
@@ -148,16 +156,16 @@ inline void __compute_density_mat_pos(vector<int> &__unsorted,
   }
 
   //if (bck_list[slot_id] == VOIDER)
-//    bck_list[slot_id] = bck_id;
- // else if (bck_list[slot_id] != bck_id)
-//    printf("error on slot id %d with bck id %d existing %d\n", slot_id, bck_id,
-//           bck_list[slot_id]);
+    //bck_list[slot_id] = bck_id;
+  //else if (bck_list[slot_id] != bck_id)
+    //printf("error on slot id %d with bck id %d existing %d\n", slot_id, bck_id,
+    //       bck_list[slot_id]);
 
-  //printf("slot id %d  bck_id %d pos in density matrix %d val %d pos %d offset "
-    //     "%d\n",
-    //     slot_id, bck_id, pos_in_bck_holder, val, pos, slot_id * BUCKET_SIZE);
+  // printf("slot id %d  bck_id %d pos in density matrix %d val %d pos %d offset
+  // "
+  //     "%d\n",
+  //     slot_id, bck_id, pos_in_bck_holder, val, pos, slot_id * BUCKET_SIZE);
 
->>>>>>> 03eb81956436bf16f98aa18663abfb9315088813
   density_matrix[pos_in_bck_holder]++;
 }
 
@@ -230,7 +238,7 @@ void __hobs_scan_(vector<int> &__unsorted_array, int *sorted_,
   begin = clock();
   // this will composed the final array
   //_compose_sorted_array(density_matrix, sorted_);
-  //_compose_sorted_array_bcks(density_matrix, sorted_);
+  _compose_sorted_array_bcks(density_matrix, sorted_);
   end = clock();
   hobs_time = (double)(end - begin) / CLOCKS_PER_SEC;
 
@@ -271,7 +279,7 @@ void hobs(int num_elements) {
   double time_spent;
   int sz_ds_mtx = sizeof(int) * BUCKET_SIZE * NUM_BUCKETS;
   double speedFactor = 1;
-
+  init_bck_list();
   printf("size holder %d\n", sz_ds_mtx);
 
   int *sorted_ = (int *)malloc(sizeof(int) * num_elements);
@@ -299,6 +307,8 @@ void hobs(int num_elements) {
 
   printf("hobs took: %.3f s\n", hobs_time);
   printf("num of bcks %d\n", (int)bck_map_list.size() );
+  printf("num of bcks: %d\n", (int)bck_map_list.size());
+
   //list_bck_ids();
 
   // compute the space taken by the high order bucket search  ( HOBS )
@@ -358,6 +368,48 @@ void test_bitfield_mapper()
     printf("num of bits set %d\n", bits_set);
 }
 
+inline ELEMENT* create_element(int value, int index){
+    ELEMENT* element = (ELEMENT*) malloc (sizeof(ELEMENT));
+    element->index = index;
+    element->value = value;
+    return element;
+}
+
+void __test_linked_list()
+{
+    int total_elements = 200000000;
+    clock_t begin, end;
+    double time_spent;
+    begin = clock();
+    ELEMENT* head = create_element(0,0);
+    ELEMENT* prev = head;
+    for(int i=1;i<total_elements;i++){
+        ELEMENT* current = create_element(i,i);
+        prev->next = current;
+        prev = current;
+    }
+    end = clock();
+    time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("element id %d\n", head->index);
+    printf("time: %.3f s\n", time_spent);
+
+    unsigned int tt = 0;
+    begin = clock();
+    ELEMENT* current = head;
+    for(int i = 1;i < total_elements;i++){
+        if(current == NULL) {
+            printf("break here\n");
+            break;
+        }
+        tt = current->index;
+        current = current->next;
+    }
+    end = clock();
+    time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
+    printf("time: %.3f s\n", time_spent);
+    printf("index %d\n", tt);
+}
+
 /*
 Starting point of the application
 */
@@ -365,17 +417,14 @@ int main(int argc, char** argv)
 {
 
     int num_elements = 50;
-    test_bitfield_mapper();
 
-<<<<<<< HEAD
+    //test_bitfield_mapper();
+    __test_linked_list();
+    return 1;
+
     int flag;
     opterr = 0;
     int c;
-=======
-  int flag;
-  opterr = 0;
-  int c;
->>>>>>> 03eb81956436bf16f98aa18663abfb9315088813
 
     while ((c = getopt(argc, argv, "n:")) != -1) {
         switch (c) {
@@ -387,11 +436,7 @@ int main(int argc, char** argv)
         }
     }
 
-<<<<<<< HEAD
     printf("num of elements %d\n", num_elements);
-=======
-  printf("num of elements %d\n", num_elements);
->>>>>>> 03eb81956436bf16f98aa18663abfb9315088813
 
     // high order bucket sort
     hobs(num_elements);
